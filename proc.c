@@ -1,3 +1,4 @@
+
 #include "types.h"
 #include "defs.h"
 #include "param.h"
@@ -149,6 +150,7 @@ userinit(void)
   acquire(&ptable.lock);
 
   p->state = RUNNABLE;
+  p->starttime = ticks;
 
   release(&ptable.lock);
 }
@@ -213,9 +215,13 @@ fork(void)
 
   pid = np->pid;
 
+  np->starttime = ticks;
+  np->endtime = 0;
+
   acquire(&ptable.lock);
 
   np->state = RUNNABLE;
+  np->runnabletime = ticks;
 
   release(&ptable.lock);
 
@@ -232,6 +238,12 @@ exit(int status)
   struct proc *p;
   int fd;
   curproc->status = status;
+  
+  curproc->endtime = ticks;
+  curproc->turnaroundtime = curproc->endtime - curproc->starttime;
+
+  cprintf("\nturnaround time: %d\n", curproc->turnaroundtime);
+  cprintf("wait time: %d\n", curproc->waittime);
 
   if (curproc == initproc)
     panic("init exiting");
@@ -265,6 +277,7 @@ exit(int status)
 
   // Jump into the scheduler, never to return.
   curproc->state = ZOMBIE;
+
   sched();
   panic("zombie exit");
 }
@@ -325,7 +338,7 @@ wait(int *status)
 void
 scheduler(void)
 {
-  struct proc *p, *j;
+  struct proc *p, *i;
   struct cpu *c = mycpu();
   c->proc = 0;
 
@@ -340,36 +353,63 @@ scheduler(void)
     for (p = ptable.proc; p < &ptable.proc[NPROC]; ++p) 
     {
       struct proc *highest = p;
+      int t = ticks;
 
       if (p->state != RUNNABLE)
-      {
         continue;
-      }
-      
-      for (j = ptable.proc; j < &ptable.proc[NPROC]; ++j)
+
+      for (i = ptable.proc; i < &ptable.proc[NPROC]; ++i)
       {
-        if (j->state != RUNNABLE)
-        {
+        if (i->state != RUNNABLE)
           continue;
-        }
-        
-        if (j->priority < p->priority)
+
+        if (i->priority < p->priority)
+          highest = i;
+      }
+
+      for (i = ptable.proc; i < &ptable.proc[NPROC]; ++i)
+      {
+        if (i->state != RUNNABLE)
+          continue;
+
+        if ((i != highest) && !(t % 100) && i->priority)
+          --i->priority;
+
+        if ((i == highest) && !(t % 100) && (i->priority < 63))
+          ++i->priority;
+      }
+
+      for (i = ptable.proc; i < &ptable.proc[NPROC]; ++i)
+      {
+        if (i->state != RUNNABLE)
+          continue;
+
+        if (i->priority < p->priority)
+          highest = i;
+      }
+
+      for (i = ptable.proc; i < &ptable.proc[NPROC]; ++i)
+      {
+        if (i->state != RUNNABLE)
+          continue;
+
+        if (i != highest)
         {
-          highest = j;
+          i->waittime = ticks - i->runnabletime;
         }
       }
-      
+
       p = highest;
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
       c->proc = p;
+    
       switchuvm(p);
       p->state = RUNNING;
-
       swtch(&(c->scheduler), p->context);
       switchkvm();
-
+      
       // Process is done running for now.
       // It should have changed its p->state before coming back.
       c->proc = 0;
@@ -598,8 +638,46 @@ int waitpid(int pid, int *status, int options)
 int setpriority(int priority)
 {
   struct proc *p = myproc();
-
-  p->priority = priority;
+  
+  if (priority < 0)
+	p->priority = 0;
+  else if (priority > 63)
+	p->priority = 63;
+  else
+        p->priority = priority;
 
   return 0;
+}
+
+int getpriority(void)
+{
+   struct proc *p = myproc();
+
+   return p->priority;
+}
+
+int cps(void)
+{
+  struct proc *p;
+
+  sti();
+
+  acquire(&ptable.lock);
+
+  cprintf("name \t pid \t state \t \n");
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; ++p)
+  {
+    if (p->state == SLEEPING)
+      cprintf("%s \t %d \t SLEEPING \t \n ", p->name, p->pid);
+    else if (p->state == RUNNING)
+      cprintf("%s \t %d \t RUNNING \t \n ", p->name, p->pid);
+    else if (p->state == RUNNABLE)
+      cprintf("%s \t %d \t RUNNABLE \t \n", p->name, p->pid);
+  }
+
+  cprintf("\n");
+
+  release(&ptable.lock);
+
+  return 22;
 }

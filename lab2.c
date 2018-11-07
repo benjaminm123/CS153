@@ -7,19 +7,22 @@ int main(int argc, char *argv[])
 	int exitWait(void);
 	int waitPid(void);
 	int PScheduler(void);
+	int priorityAge(void);
 
-  printf(1, "\n This program tests the correctness of your lab#1\n");
-  
-  if (atoi(argv[1]) == 1)
-	exitWait();
-  else if (atoi(argv[1]) == 2)
-	waitPid();
-  else if (atoi(argv[1]) == 3)
-	PScheduler();
-  else 
-   printf(1, "\ntype \"lab1 1\" to test exit and wait, \"lab1 2\" to test waitpid and \"lab1 3\" to test the priority scheduler \n");
-  
-    // End of test
+	printf(1, "\n This program tests the correctness of your lab#1\n");
+
+	if (atoi(argv[1]) == 1)
+		exitWait();
+	else if (atoi(argv[1]) == 2)
+		waitPid();
+	else if (atoi(argv[1]) == 3)
+		PScheduler();
+	else if (atoi(argv[1]) == 4)
+		priorityAge();
+	else 
+		printf(1, "\ntype \"lab1 1\" to test exit and wait, \"lab1 2\" to test waitpid and \"lab1 3\" to test the priority scheduler \n");
+
+	// End of test
 	 exit(0);
  }
   
@@ -110,17 +113,18 @@ int PScheduler(void)
   int exit_status;
   int i,j,k;
   
-    printf(1, "\n  Step 2: testing the priority scheduler and setpriority(int priority)) systema call:\n");
+    printf(1, "\n  Step 2: testing the priority scheduler and setpriority(int priority)) system call:\n");
     printf(1, "\n  Step 2: Assuming that the priorities range between range between 0 to 63\n");
     printf(1, "\n  Step 2: 0 is the highest priority. All processes have a default priority of 20\n");
     printf(1, "\n  Step 2: The parent processes will switch to priority 0\n");
+
     setpriority(0);
 
-    for (i = 0; i <  3; i++) 
+    for (i = 0; i < 3; i++) 
     {
 		pid = fork();
 
-		if (pid > 0 ) 
+		if (pid > 0) 
 		{
 			continue;
 		}
@@ -133,7 +137,7 @@ int PScheduler(void)
 			{
 				for(k = 0; k < 10000; k++) 
 				{
-					asm("nop"); 
+					asm("nop");
 				}
 			}
 
@@ -147,9 +151,9 @@ int PScheduler(void)
         }
 	}
 
-	if(pid > 0) 
+	if (pid > 0) 
 	{
-		for (i = 0; i <  3; i++) 
+		for (i = 0; i < 3; i++) 
 		{
 			ret_pid = wait(&exit_status);
 			printf(1, "\n This is the parent: child with PID# %d has finished with status %d \n", ret_pid, exit_status);
@@ -161,4 +165,53 @@ int PScheduler(void)
 	return 0;
 }	
 
+int priorityAge(void)
+{
+	printf(1, "\nTesting Priority Aging\n");
+	sleep(100);
 
+	int i, j, pid;
+	int priority = 0;
+	int count = 0;
+
+	setpriority(priority);	
+
+	for (i = 0; i < 2; ++i)
+	{
+		pid = fork();
+		priority += 5;
+		++count;
+
+		if (pid > 0)
+		{
+			continue;
+		}
+		else if (pid == 0)
+		{
+			setpriority(priority);
+
+			for (j = 0; j < 5000; ++j)
+			{
+				printf(1, "Child %d Priority: %d\n", count, getpriority());
+			}
+
+			printf(1, "\nChild Time");
+			exit(0);
+		}
+		else
+		{
+			printf(2, "\nError\n");
+			exit(-1);
+		}	
+	}
+
+	if (pid > 0)
+	{
+		for (i = 0; i < 2; ++i)
+			wait(0);
+
+		printf(1, "\nParent Time");
+	}
+
+	return 0;
+}

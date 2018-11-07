@@ -126,5 +126,15 @@ int sys_setpriority(void)
 
   setpriority(priority);
 
-  return priority; 
+  return 0; 
+}
+
+int sys_getpriority(void)
+{
+   return getpriority();
+}
+
+int sys_cps(void)
+{
+  return cps();
 }

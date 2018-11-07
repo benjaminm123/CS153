@@ -121,7 +121,10 @@ int             wait(int *status);
 void            wakeup(void*);
 void            yield(void);
 int             waitpid(int pid, int *status, int options);
-int		setpriority(int priority);
+int				setpriority(int priority);
+int 			getpriority(void);
+int 			getelapsedtime(void);
+int 			cps(void);
 // swtch.S
 void            swtch(struct context**, struct context*);
 
@@ -164,7 +167,7 @@ void            timerinit(void);
 void            idtinit(void);
 extern uint     ticks;
 void            tvinit(void);
-extern struct spinlock tickslock;
+extern struct 	spinlock tickslock;
 
 // uart.c
 void            uartinit(void);
